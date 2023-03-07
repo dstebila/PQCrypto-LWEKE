@@ -60,6 +60,7 @@ class FrodoKEM(object):
         self.B = 2
         self.len_seedA = 128
         self.len_z = 128
+        self.len_salt = 128
         self.len_mu = 128
         self.len_seedSE = 128
         self.len_s = 128
@@ -69,6 +70,7 @@ class FrodoKEM(object):
         self.len_chi = 16
         self.len_seedA_bytes = int(self.len_seedA / 8)
         self.len_z_bytes = int(self.len_z / 8)
+        self.len_salt_bytes = int(self.len_salt / 8)
         self.len_mu_bytes = int(self.len_mu / 8)
         self.len_seedSE_bytes = int(self.len_seedSE / 8)
         self.len_s_bytes = int(self.len_s / 8)
@@ -80,7 +82,7 @@ class FrodoKEM(object):
         # FrodoKEM specification, Table 5
         self.len_sk_bytes = 19888
         self.len_pk_bytes = 9616
-        self.len_ct_bytes = 9720
+        self.len_ct_bytes = 9736
         self.len_ss_bytes = 16
 
     def setParamsFrodo976(self):
@@ -97,6 +99,7 @@ class FrodoKEM(object):
         self.B = 3
         self.len_seedA = 128
         self.len_z = 128
+        self.len_salt = 192
         self.len_mu = 192
         self.len_seedSE = 192
         self.len_s = 192
@@ -106,6 +109,7 @@ class FrodoKEM(object):
         self.len_chi = 16
         self.len_seedA_bytes = int(self.len_seedA / 8)
         self.len_z_bytes = int(self.len_z / 8)
+        self.len_salt_bytes = int(self.len_salt / 8)
         self.len_mu_bytes = int(self.len_mu / 8)
         self.len_seedSE_bytes = int(self.len_seedSE / 8)
         self.len_s_bytes = int(self.len_s / 8)
@@ -117,7 +121,7 @@ class FrodoKEM(object):
         # FrodoKEM specification, Table 5
         self.len_sk_bytes = 31296
         self.len_pk_bytes = 15632
-        self.len_ct_bytes = 15744
+        self.len_ct_bytes = 15768
         self.len_ss_bytes = 24
 
     def setParamsFrodo1344(self):
@@ -134,6 +138,7 @@ class FrodoKEM(object):
         self.B = 4
         self.len_seedA = 128
         self.len_z = 128
+        self.len_salt = 256
         self.len_mu = 256
         self.len_seedSE = 256
         self.len_s = 256
@@ -143,6 +148,7 @@ class FrodoKEM(object):
         self.len_chi = 16
         self.len_seedA_bytes = int(self.len_seedA / 8)
         self.len_z_bytes = int(self.len_z / 8)
+        self.len_salt_bytes = int(self.len_salt / 8)
         self.len_mu_bytes = int(self.len_mu / 8)
         self.len_seedSE_bytes = int(self.len_seedSE / 8)
         self.len_s_bytes = int(self.len_s / 8)
@@ -154,7 +160,7 @@ class FrodoKEM(object):
         # FrodoKEM specification, Table 5
         self.len_sk_bytes = 43088
         self.len_pk_bytes = 21520
-        self.len_ct_bytes = 21632
+        self.len_ct_bytes = 21664
         self.len_ss_bytes = 32
 
     def __print_intermediate_value(self, name, value):
@@ -503,14 +509,16 @@ class FrodoKEM(object):
         assert len(pk) == self.len_seedA_bytes + self.D * self.n * self.nbar / 8, "Incorrect public key length"
         seedA = pk[0 : self.len_seedA_bytes]
         b = pk[self.len_seedA_bytes:]
-        # 1. Choose a uniformly random key mu in {0,1}^len_mu (length in bits)
+        # 1. Choose uniformly random values mu in {0,1}^len_mu and salt in {0,1}^len_salt (length in bits)
         mu = self.randombytes(self.len_mu_bytes)
+        salt = self.randombytes(self.len_salt_bytes)
         self.__print_intermediate_value("mu", mu)
+        self.__print_intermediate_value("salt", salt)
         # 2. pkh = SHAKE(pk, len_pkh)
         pkh = self.shake(pk, self.len_pkh_bytes)
         self.__print_intermediate_value("pkh", pkh)
-        # 3. seedSE || k = SHAKE(pkh || mu, len_seedSE + len_k) (length in bits)
-        seedSE_k = self.shake(pkh + mu, self.len_seedSE_bytes + self.len_k_bytes)
+        # 3. seedSE || k = SHAKE(pkh || mu || salt, len_seedSE + len_k) (length in bits)
+        seedSE_k = self.shake(pkh + mu + salt, self.len_seedSE_bytes + self.len_k_bytes)
         seedSE = seedSE_k[0:self.len_seedSE_bytes]
         self.__print_intermediate_value("seedSE", seedSE)
         k = seedSE_k[self.len_seedSE_bytes:self.len_seedSE_bytes + self.len_k_bytes]
@@ -549,8 +557,8 @@ class FrodoKEM(object):
         # 14. c2 = Frodo.Pack(C)
         c2 = self.pack(C)
         self.__print_intermediate_value("c2", c2)
-        # 15. ss = SHAKE(c1 || c2 || k, len_ss)
-        ss = self.shake(c1 + c2 + k, self.len_ss_bytes)
+        # 15. ss = SHAKE(c1 || c2 || salt || k, len_ss)
+        ss = self.shake(c1 + c2 + salt + k, self.len_ss_bytes)
         ct = c1 + c2
         assert len(ct) == self.len_ct_bytes
         assert len(ss) == self.len_ss_bytes
@@ -559,7 +567,7 @@ class FrodoKEM(object):
     def kem_decaps(self, sk, ct):
         """Decapsulate a ciphertext using a secret key to obtain a shared secret 
         (FrodoKEM specification, Algorithm 14)"""
-        # Parse ct = c1 || c2
+        # Parse ct = c1 || c2 || salt
         assert len(ct) == self.len_ct_bytes, "Incorrect ciphertext length"
         offset = 0; length = int(self.mbar * self.n * self.D / 8)
         c1 = ct[offset:offset+length]
@@ -567,6 +575,9 @@ class FrodoKEM(object):
         offset += length; length = int(self.mbar * self.nbar * self.D / 8)
         c2 = ct[offset:offset+length]
         self.__print_intermediate_value("c2", c2)
+        offset += length; length = self.len_salt_bytes
+        salt = ct[offset:offset+length]
+        self.__print_intermediate_value("salt", salt)
         # Parse sk = (s || seedA || b, S^T, pkh)
         assert len(sk) == self.len_sk_bytes
         offset = 0; length = self.len_s_bytes
@@ -605,8 +616,8 @@ class FrodoKEM(object):
         self.__print_intermediate_value("mu'", muprime)
         # 5. Parse pk = seedA || b
         # (done above)
-        # 6. seedSE' || k' = SHAKE(pkh || mu', len_seedSE + len_k) (length in bits)
-        seedSEprime_kprime = self.shake(pkh + muprime, self.len_seedSE_bytes + self.len_k_bytes)
+        # 6. seedSE' || k' = SHAKE(pkh || mu' || salt, len_seedSE + len_k) (length in bits)
+        seedSEprime_kprime = self.shake(pkh + muprime + salt, self.len_seedSE_bytes + self.len_k_bytes)
         seedSEprime = seedSEprime_kprime[0:self.len_seedSE_bytes]
         self.__print_intermediate_value("seedSE'", seedSEprime)
         kprime = seedSEprime_kprime[self.len_seedSE_bytes:self.len_seedSE_bytes + self.len_k_bytes]
@@ -644,7 +655,7 @@ class FrodoKEM(object):
         #     primitives using the Fujisaki-Okamoto transformation and its application on FrodoKEM. In CRYPTO 2020.
         use_kprime = self.__ctverify(Bprime + C, Bprimeprime + Cprime)
         kbar = self.__ctselect(kprime, s, use_kprime)
-        # 17. ss = SHAKE(c1 || c2 || kbar, len_ss) (length in bits)
-        ss = self.shake(c1 + c2 + kbar, self.len_ss_bytes)
+        # 17. ss = SHAKE(c1 || c2 || salt || kbar, len_ss) (length in bits)
+        ss = self.shake(c1 + c2 + salt + kbar, self.len_ss_bytes)
         assert len(ss) == self.len_ss_bytes
         return ss
