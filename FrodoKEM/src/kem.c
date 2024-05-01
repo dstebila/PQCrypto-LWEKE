@@ -4,6 +4,10 @@
 * Abstract: Key Encapsulation Mechanism (KEM) based on Frodo
 *********************************************************************************************/
 
+// #define SFO_PKH_M_C
+// #define SFO_PKH_M
+#define SFO_ID_PK_M
+
 #include <string.h>
 #include "../../common/sha3/fips202.h"
 #include "../../common/random/random.h"
@@ -113,7 +117,14 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     VALGRIND_MAKE_MEM_UNDEFINED(mu, BYTES_MU + BYTES_SALT);
     VALGRIND_MAKE_MEM_UNDEFINED(pk, CRYPTO_PUBLICKEYBYTES);
 #endif
+    #if defined(SFO_PKH_M_C) || defined(SFO_PKH_M)
     shake(G2out, BYTES_SEED_SE + CRYPTO_BYTES, G2in, BYTES_PKHASH + BYTES_MU + BYTES_SALT);
+    #elif defined(SFO_ID_PK_M)
+    uint8_t G2newin[BYTES_SEED_A + CRYPTO_BYTES];
+    memcpy(G2newin, pk_seedA, BYTES_SEED_A);
+    memcpy(G2newin + BYTES_SEED_A, pk_b, CRYPTO_BYTES);
+    shake(G2out, BYTES_SEED_SE + CRYPTO_BYTES, G2newin, BYTES_SEED_A + CRYPTO_BYTES);
+    #endif
 
     // Generate Sp and Ep, and compute Bp = Sp*A + Ep. Generate A on-the-fly
     shake_input_seedSE[0] = 0x96;
@@ -138,10 +149,18 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     frodo_pack(ct_c2, (PARAMS_LOGQ*PARAMS_NBAR*PARAMS_NBAR)/8, C, PARAMS_NBAR*PARAMS_NBAR, PARAMS_LOGQ);
 
     // Append salt to ct and compute ss = F(ct_c1||ct_c2||salt||k)
+    #if defined(SFO_PKH_M_C)
     memcpy(&ct[CRYPTO_CIPHERTEXTBYTES - BYTES_SALT], salt, BYTES_SALT);
     memcpy(Fin_ct, ct, CRYPTO_CIPHERTEXTBYTES);
     memcpy(Fin_k, k, CRYPTO_BYTES);
     shake(ss, CRYPTO_BYTES, Fin, CRYPTO_CIPHERTEXTBYTES + CRYPTO_BYTES);
+    #elif defined(SFO_PKH_M) || defined(SFO_ID_PK_M)
+    // Compute ss = F(salt || k)
+    memcpy(&ct[CRYPTO_CIPHERTEXTBYTES - BYTES_SALT], salt, BYTES_SALT);
+    memcpy(Fin_ct, ct, CRYPTO_CIPHERTEXTBYTES);
+    memcpy(Fin_k, k, CRYPTO_BYTES);
+    shake(ss, CRYPTO_BYTES, Fin + CRYPTO_CIPHERTEXTBYTES - BYTES_SALT, BYTES_SALT + CRYPTO_BYTES);
+    #endif
 
     // Cleanup:
     clear_bytes((uint8_t *)V, PARAMS_NBAR*PARAMS_NBAR*sizeof(uint16_t));
@@ -215,7 +234,14 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     // Generate (seedSE' || k') = G_2(pkh || mu' || salt)
     memcpy(pkh, sk_pkh, BYTES_PKHASH);
     memcpy(G2in_salt, salt, BYTES_SALT);
+    #if defined(SFO_PKH_M_C) || defined(SFO_PKH_M)
     shake(G2out, BYTES_SEED_SE + CRYPTO_BYTES, G2in, BYTES_PKHASH + BYTES_MU + BYTES_SALT);
+    #elif defined(SFO_ID_PK_M)
+    uint8_t G2newin[BYTES_SEED_A + CRYPTO_BYTES];
+    memcpy(G2newin, pk_seedA, BYTES_SEED_A);
+    memcpy(G2newin + BYTES_SEED_A, pk_b, CRYPTO_BYTES);
+    shake(G2out, BYTES_SEED_SE + CRYPTO_BYTES, G2newin, BYTES_SEED_A + CRYPTO_BYTES);
+    #endif
 
     // Generate Sp and Ep, and compute BBp = Sp*A + Ep. Generate A on-the-fly
     shake_input_seedSEprime[0] = 0x96;
@@ -248,7 +274,11 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     int8_t selector = ct_verify(Bp, BBp, PARAMS_N*PARAMS_NBAR) | ct_verify(C, CC, PARAMS_NBAR*PARAMS_NBAR);
     // If (selector == 0) then load k' to do ss = F(ct || k'), else if (selector == -1) load s to do ss = F(ct || s)
     ct_select((uint8_t*)Fin_k, (uint8_t*)kprime, (uint8_t*)sk_s, CRYPTO_BYTES, selector);
+    #if defined(SFO_PKH_M_C)
     shake(ss, CRYPTO_BYTES, Fin, CRYPTO_CIPHERTEXTBYTES + CRYPTO_BYTES);
+    #elif defined(SFO_PKH_M) || defined(SFO_ID_PK_M)
+    shake(ss, CRYPTO_BYTES, Fin + CRYPTO_CIPHERTEXTBYTES - BYTES_SALT, BYTES_SALT + CRYPTO_BYTES);
+    #endif
 
     // Cleanup:
     clear_bytes((uint8_t *)W, PARAMS_NBAR*PARAMS_NBAR*sizeof(uint16_t));

@@ -13,7 +13,7 @@
 #endif
 
 
-static int kem_keypair(unsigned char* pk, unsigned char* sk)
+int kem_keypair(unsigned char* pk, unsigned char* sk)
 { // FrodoKEM's key generation
   // Outputs: public key pk = pk_seedA||pk_b                      (               BYTES_SEED_A + (PARAMS_LOGQ*PARAMS_N*PARAMS_NBAR)/8 bytes)
   //          secret key sk = sk_s||pk_seedA||pk_b||sk_S||sk_pkh  (CRYPTO_BYTES + BYTES_SEED_A + (PARAMS_LOGQ*PARAMS_N*PARAMS_NBAR)/8 + 2*PARAMS_N*PARAMS_NBAR + BYTES_PKHASH bytes)
@@ -77,7 +77,7 @@ static int kem_keypair(unsigned char* pk, unsigned char* sk)
 }
 
 
-static int kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk)
+int kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk)
 { // FrodoKEM's key encapsulation
   // Input:   public key pk = pk_seedA||pk_b      (BYTES_SEED_A + (PARAMS_LOGQ*PARAMS_N*PARAMS_NBAR)/8 bytes)
   // Outputs: ciphertext ct = ct_c1||ct_c2        (               (PARAMS_LOGQ*PARAMS_N*PARAMS_NBAR)/8 + (PARAMS_LOGQ*PARAMS_NBAR*PARAMS_NBAR)/8 bytes)

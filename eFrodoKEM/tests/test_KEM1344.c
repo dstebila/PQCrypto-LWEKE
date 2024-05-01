@@ -15,6 +15,8 @@
 #define SYSTEM_NAME    "eFrodoKEM-1344"
 
 #define crypto_kem_keypair_enc        crypto_kem_keypair_enc_eFrodo1344
+#define kem_keypair        crypto_kem_keypair_eFrodo1344
+#define kem_enc        crypto_kem_enc_eFrodo1344
 #define crypto_kem_dec                crypto_kem_dec_eFrodo1344
 #define shake                         shake256
 

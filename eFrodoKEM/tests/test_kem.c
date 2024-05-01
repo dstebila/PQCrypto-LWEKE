@@ -96,7 +96,8 @@ static void kem_bench(const int seconds)
     uint8_t ss_encap[CRYPTO_BYTES], ss_decap[CRYPTO_BYTES];
     uint8_t ct[CRYPTO_CIPHERTEXTBYTES];
 
-    TIME_OPERATION_SECONDS({ crypto_kem_keypair_enc(ct, ss_encap, pk, sk); }, "Keygen and KEM encapsulate", seconds);
+    TIME_OPERATION_SECONDS({ kem_keypair(pk, sk); }, "Keygen", seconds);
+    TIME_OPERATION_SECONDS({ kem_enc(ct, ss_encap, pk); }, "KEM encapsulate", seconds);
     
     crypto_kem_keypair_enc(ct, ss_encap, pk, sk);
     TIME_OPERATION_SECONDS({ crypto_kem_dec(ss_decap, ct, sk); }, "KEM decapsulate", seconds);

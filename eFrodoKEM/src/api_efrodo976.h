@@ -18,6 +18,8 @@
 
 
 int crypto_kem_keypair_enc_eFrodo976(unsigned char *ct, unsigned char *ss, unsigned char *pk, unsigned char* sk);
+int crypto_kem_keypair_eFrodo976(unsigned char* pk, unsigned char* sk);
+int crypto_kem_enc_eFrodo976(unsigned char* ct, unsigned char* ss, const unsigned char* pk);
 int crypto_kem_dec_eFrodo976(unsigned char *ss, const unsigned char *ct, const unsigned char *sk);
 
 

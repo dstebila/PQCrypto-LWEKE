@@ -33,6 +33,8 @@ uint16_t CDF_TABLE[13] = {4643, 13363, 20579, 25843, 29227, 31145, 32103, 32525,
 uint16_t CDF_TABLE_LEN = 13;
 
 #define crypto_kem_keypair_enc        crypto_kem_keypair_enc_eFrodo640
+#define kem_keypair        crypto_kem_keypair_eFrodo640
+#define kem_enc        crypto_kem_enc_eFrodo640
 #define crypto_kem_dec                crypto_kem_dec_eFrodo640
 
 #include "ekem.c"
